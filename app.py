@@ -9,11 +9,12 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 import time
 import os
 import threading
+import subprocess
+import platform
 
 app = Flask(__name__)
 
@@ -26,23 +27,27 @@ def get_chrome_options():
     chrome_options = Options()
     
     # Headless mode is required for Render
-    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless=new")  # Use new headless mode
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--disable-features=VizDisplayCompositor")
     chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-plugins")
+    chrome_options.add_argument("--disable-images")  # Don't load images to save memory
     
-    # Minimal resource usage
+    # Aggressive memory optimization
     chrome_options.add_argument("--memory-pressure-off")
-    chrome_options.add_argument("--max_old_space_size=512")
+    chrome_options.add_argument("--max_old_space_size=256")  # Reduced from 512
     chrome_options.add_argument("--disable-background-timer-throttling")
     chrome_options.add_argument("--disable-renderer-backgrounding")
     chrome_options.add_argument("--disable-features=TranslateUI")
     chrome_options.add_argument("--disable-ipc-flooding-protection")
+    chrome_options.add_argument("--single-process")  # Run in single process to save memory
+    chrome_options.add_argument("--disable-setuid-sandbox")
     
     # Set minimal window size
-    chrome_options.add_argument("--window-size=1280,720")
+    chrome_options.add_argument("--window-size=800,600")  # Smaller window
     
     # User agent
     chrome_options.add_argument("user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -57,7 +62,20 @@ def get_or_create_driver():
         if driver_instance is None:
             try:
                 chrome_options = get_chrome_options()
-                service = Service(ChromeDriverManager().install())
+                
+                # Check if we're on Render (Linux) or local
+                if platform.system() == "Linux":
+                    # Use system-installed chromedriver on Render
+                    chromedriver_path = "/usr/bin/chromedriver"
+                    if not os.path.exists(chromedriver_path):
+                        # Try alternative locations
+                        chromedriver_path = "/usr/local/bin/chromedriver"
+                    service = Service(executable_path=chromedriver_path)
+                else:
+                    # For local development, use webdriver-manager
+                    from webdriver_manager.chrome import ChromeDriverManager
+                    service = Service(ChromeDriverManager().install())
+                
                 driver_instance = webdriver.Chrome(service=service, options=chrome_options)
                 print("Created new driver instance")
             except Exception as e:

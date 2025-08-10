@@ -4,17 +4,27 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for Chrome (minimal set)
+# Install Chrome and ChromeDriver manually
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     unzip \
-    curl \
     --no-install-recommends && \
+    # Install Chrome
     wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && \
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list && \
     apt-get update && \
     apt-get install -y google-chrome-stable --no-install-recommends && \
+    # Get Chrome version and install matching ChromeDriver
+    CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1) && \
+    wget -q "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}" -O /tmp/chromedriver_version && \
+    CHROMEDRIVER_VERSION=$(cat /tmp/chromedriver_version) && \
+    wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" -O /tmp/chromedriver.zip && \
+    unzip -q /tmp/chromedriver.zip -d /usr/bin/ && \
+    chmod +x /usr/bin/chromedriver && \
+    # Cleanup to reduce image size
+    apt-get purge -y wget gnupg unzip && \
+    apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
