@@ -27,6 +27,41 @@ def get_chrome_options():
     """Configure lightweight Chrome options for Render deployment"""
     chrome_options = Options()
     
+    # Check for Chrome binary in multiple locations
+    chrome_binaries = [
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium"
+    ]
+    
+    chrome_binary = None
+    for binary in chrome_binaries:
+        if os.path.exists(binary):
+            chrome_binary = binary
+            print(f"Found Chrome binary at: {chrome_binary}")
+            try:
+                result = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    print(f"Chrome version: {result.stdout.strip()}")
+            except Exception as e:
+                print(f"Error checking Chrome version: {e}")
+            break
+    
+    if chrome_binary:
+        chrome_options.binary_location = chrome_binary
+    else:
+        print("WARNING: Chrome binary not found in expected locations")
+        # Try to find it in PATH
+        try:
+            result = subprocess.run(["which", "google-chrome"], capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                chrome_binary = result.stdout.strip()
+                chrome_options.binary_location = chrome_binary
+                print(f"Found Chrome in PATH at: {chrome_binary}")
+        except:
+            pass
+    
     # Essential headless configuration
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
