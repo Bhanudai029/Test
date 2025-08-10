@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     curl \
     ca-certificates \
+    jq \
     --no-install-recommends && \
     # Add Google Chrome's official GPG key and repository
     wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -18,11 +19,14 @@ RUN apt-get update && apt-get install -y \
     # Update and install Chrome
     apt-get update && \
     apt-get install -y google-chrome-stable --no-install-recommends && \
-    # Verify Chrome installation
-    google-chrome --version && \
-    # Install ChromeDriver - using latest stable version
-    CHROMEDRIVER_VERSION="131.0.6778.204" && \
-    echo "Installing ChromeDriver version: $CHROMEDRIVER_VERSION" && \
+    # Get Chrome version and extract major version
+    CHROME_VERSION=$(google-chrome-stable --version | grep -oP '\d+\.\d+\.\d+\.\d+') && \
+    CHROME_MAJOR=$(echo $CHROME_VERSION | cut -d. -f1) && \
+    echo "Installed Chrome version: $CHROME_VERSION (major: $CHROME_MAJOR)" && \
+    # Get the matching ChromeDriver version for this Chrome major version
+    CHROMEDRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR}") && \
+    echo "Installing matching ChromeDriver version: $CHROMEDRIVER_VERSION" && \
+    # Download and install ChromeDriver
     wget -q "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip" -O /tmp/chromedriver.zip && \
     unzip -q /tmp/chromedriver.zip -d /tmp/ && \
     mv /tmp/chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
