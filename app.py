@@ -129,41 +129,38 @@ def verify_chromedriver():
     return None
 
 def get_or_create_driver():
-    """Get existing driver or create new one (singleton pattern for efficiency)"""
-    global driver_instance
-    
-    with driver_lock:
-        if driver_instance is None:
-            try:
-                # Verify ChromeDriver first
-                chromedriver_path = verify_chromedriver()
-                if not chromedriver_path:
-                    raise Exception("ChromeDriver not found or not working")
-                
-                chrome_options = get_chrome_options()
-                
-                print(f"Initializing Chrome with driver at: {chromedriver_path}")
-                service = Service(executable_path=chromedriver_path)
-                
-                driver_instance = webdriver.Chrome(service=service, options=chrome_options)
-                # Set reasonable timeouts
-                driver_instance.set_page_load_timeout(25)  # 25 seconds for page load
-                driver_instance.implicitly_wait(5)  # 5 seconds implicit wait (reduced from 10)
-                print("Successfully created Chrome driver instance")
-            except Exception as e:
-                print(f"Error creating driver: {e}")
-                import traceback
-                print(f"Full traceback:\n{traceback.format_exc()}")
-                return None
-        return driver_instance
+    """Create a new driver instance for each request"""
+    try:
+        # Verify ChromeDriver first
+        chromedriver_path = verify_chromedriver()
+        if not chromedriver_path:
+            raise Exception("ChromeDriver not found or not working")
+        
+        chrome_options = get_chrome_options()
+        
+        print(f"Creating new Chrome instance with driver at: {chromedriver_path}")
+        service = Service(executable_path=chromedriver_path)
+        
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Set reasonable timeouts
+        driver.set_page_load_timeout(25)  # 25 seconds for page load
+        driver.implicitly_wait(5)  # 5 seconds implicit wait
+        print("Successfully created Chrome driver instance")
+        return driver
+    except Exception as e:
+        print(f"Error creating driver: {e}")
+        import traceback
+        print(f"Full traceback:\n{traceback.format_exc()}")
+        return None
 
 def navigate_and_interact(url):
     """Navigate to Facebook URL and perform automated interactions"""
-    driver = get_or_create_driver()
-    if not driver:
-        return None, "Failed to initialize browser"
-    
+    driver = None
     try:
+        driver = get_or_create_driver()
+        if not driver:
+            return None, "Failed to initialize browser"
+        
         # Ensure URL is properly formatted
         if not url.startswith('http'):
             if 'facebook.com' in url:
@@ -219,18 +216,28 @@ def navigate_and_interact(url):
         if "photo" in final_url and "fbid" in final_url:
             print("Successfully navigated to photo URL")
         
-        return {
+        result = {
             'success': True,
             'initial_url': url,
             'final_url': final_url,
             'page_title': page_title
-        }, None
+        }
+        
+        return result, None
         
     except Exception as e:
         print(f"Error during navigation: {e}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
         return None, str(e)
+    finally:
+        # Always close the driver
+        if driver:
+            try:
+                print("Closing browser instance...")
+                driver.quit()
+            except:
+                pass
 
 @app.route('/')
 def home():
