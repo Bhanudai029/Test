@@ -153,8 +153,12 @@ def get_or_create_driver():
         print(f"Full traceback:\n{traceback.format_exc()}")
         return None
 
-def navigate_and_interact(url):
+def navigate_and_interact(url, request_id=None):
     """Navigate to Facebook URL and perform automated interactions"""
+    import uuid
+    request_id = request_id or str(uuid.uuid4())[:8]
+    print(f"\n[{request_id}] Starting navigation request")
+    
     driver = None
     try:
         driver = get_or_create_driver()
@@ -168,7 +172,7 @@ def navigate_and_interact(url):
             else:
                 url = 'https://www.facebook.com/' + url.lstrip('/')
         
-        print(f"Navigating to: {url}")
+        print(f"[{request_id}] Navigating to: {url}")
         
         # Set page load timeout to 20 seconds (to avoid 30s timeout)
         driver.set_page_load_timeout(20)
@@ -246,10 +250,23 @@ def home():
     <html>
         <head><title>Facebook Browser API</title></head>
         <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
-            <h1>🌐 Lightweight Facebook Browser API</h1>
+            <h1>🌐 Facebook Browser API</h1>
             <p>This service provides headless browser navigation for Facebook URLs.</p>
             
-            <h2>API Usage:</h2>
+            <h2>Available Endpoints:</h2>
+            
+            <h3>1. Simple GET Endpoints (Easy to test):</h3>
+            <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px;">
+GET /api/visit/{username}   - Visit a Facebook profile
+GET /visit/{username}        - Alternative shorter URL
+
+Examples:
+  /api/visit/zuck          → Mark Zuckerberg's profile
+  /api/visit/marketplace   → Facebook Marketplace
+  /api/visit/abestoflife   → A Best of Life page
+            </pre>
+            
+            <h3>2. POST Endpoint (More flexible):</h3>
             <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px;">
 POST /navigate
 Content-Type: application/json
@@ -259,18 +276,31 @@ Content-Type: application/json
 }
             </pre>
             
-            <h2>Response:</h2>
+            <h3>3. Utility Endpoints:</h3>
+            <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px;">
+GET /health       - Health check
+GET /diagnostics  - System diagnostics
+POST /shutdown    - Shutdown browser instance
+            </pre>
+            
+            <h2>Response Format:</h2>
             <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px;">
 {
     "success": true,
-    "initial_url": "https://www.facebook.com/marketplace",
-    "final_url": "https://www.facebook.com/...",
-    "page_title": "Facebook - Marketplace"
+    "initial_url": "https://www.facebook.com/zuck",
+    "final_url": "https://www.facebook.com/photo/?fbid=...",
+    "page_title": "Facebook",
+    "username": "zuck"  // For GET endpoints
 }
             </pre>
             
-            <h2>Health Check:</h2>
-            <p>GET /health - Check if service is running</p>
+            <h2>Quick Test Links:</h2>
+            <ul>
+                <li><a href="/health">Health Check</a></li>
+                <li><a href="/diagnostics">System Diagnostics</a></li>
+                <li><a href="/api/visit/zuck">Visit Zuck</a></li>
+                <li><a href="/api/visit/marketplace">Visit Marketplace</a></li>
+            </ul>
         </body>
     </html>
     '''
@@ -368,6 +398,43 @@ def navigate():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/visit/<username>', methods=['GET'])
+def visit_user(username):
+    """Visit a Facebook user/page - GET endpoint for simple testing"""
+    try:
+        print(f"\n[API] GET /api/visit/{username}")
+        
+        # Handle special cases
+        if username.lower() == 'marketplace':
+            url = 'facebook.com/marketplace'
+        else:
+            url = username  # Will be processed by navigate_and_interact
+        
+        result, error = navigate_and_interact(url, request_id=username[:8])
+        
+        if error:
+            return jsonify({
+                'success': False,
+                'error': error,
+                'username': username
+            }), 500
+        
+        # Add username to result
+        result['username'] = username
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'username': username
+        }), 500
+
+@app.route('/visit/<username>', methods=['GET'])
+def visit_user_simple(username):
+    """Simpler visit endpoint - just /visit/{username}"""
+    return visit_user(username)
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
