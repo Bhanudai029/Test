@@ -1,0 +1,31 @@
+# 🌐 Browser Navigation API - Quick Commands
+
+## For Anyone, Anywhere in the World!
+
+### Quick Test (One-liner):
+curl -X POST https://testingappbye.onrender.com/navigate -H "Content-Type: application/json" -d '{"url": "facebook.com/zuck"}'
+
+### Interactive Terminal Tool (Linux/Mac/WSL):
+bash <(curl -s https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/public-navigate.sh)
+
+### Windows PowerShell (One-liner):
+Invoke-RestMethod -Uri "https://testingappbye.onrender.com/navigate" -Method Post -Body (@{url="facebook.com/zuck"} | ConvertTo-Json) -ContentType "application/json"
+
+### Windows Command Prompt:
+curl -X POST https://testingappbye.onrender.com/navigate -H "Content-Type: application/json" -d "{\"url\": \"facebook.com/zuck\"}"
+
+## What This Does:
+1. Navigates to the URL you provide
+2. Presses ESC (closes popups)
+3. Presses TAB 7 times (navigates elements)
+4. Presses ENTER (activates element)
+5. Returns the final URL after all actions
+
+## Examples:
+- facebook.com/zuck
+- facebook.com/marketplace
+- any-website.com/page
+- https://www.example.com
+
+## API is Live at:
+https://testingappbye.onrender.com
