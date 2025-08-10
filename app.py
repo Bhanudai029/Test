@@ -54,6 +54,40 @@ def get_chrome_options():
     
     return chrome_options
 
+def verify_chromedriver():
+    """Verify ChromeDriver installation and return path"""
+    # Check system installation first
+    chromedriver_path = "/usr/bin/chromedriver"
+    
+    if os.path.exists(chromedriver_path):
+        try:
+            # Test if it's actually executable
+            result = subprocess.run([chromedriver_path, "--version"], 
+                                    capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                print(f"ChromeDriver found and working: {result.stdout.strip()}")
+                return chromedriver_path
+            else:
+                print(f"ChromeDriver exists but failed: {result.stderr}")
+        except Exception as e:
+            print(f"Error testing ChromeDriver: {e}")
+    
+    # Try alternative location
+    chromedriver_path = "/usr/local/bin/chromedriver"
+    if os.path.exists(chromedriver_path):
+        print(f"Found ChromeDriver at alternative location: {chromedriver_path}")
+        return chromedriver_path
+    
+    # For local Windows development
+    if platform.system() == "Windows":
+        for path in ["chromedriver.exe", "chromedriver"]:
+            if os.path.exists(path):
+                print(f"Found ChromeDriver for Windows: {path}")
+                return path
+    
+    print("ChromeDriver not found in any expected location")
+    return None
+
 def get_or_create_driver():
     """Get existing driver or create new one (singleton pattern for efficiency)"""
     global driver_instance
@@ -61,25 +95,22 @@ def get_or_create_driver():
     with driver_lock:
         if driver_instance is None:
             try:
+                # Verify ChromeDriver first
+                chromedriver_path = verify_chromedriver()
+                if not chromedriver_path:
+                    raise Exception("ChromeDriver not found or not working")
+                
                 chrome_options = get_chrome_options()
                 
-                # Check if we're on Render (Linux) or local
-                if platform.system() == "Linux":
-                    # Use system-installed chromedriver on Render
-                    chromedriver_path = "/usr/bin/chromedriver"
-                    if not os.path.exists(chromedriver_path):
-                        # Try alternative locations
-                        chromedriver_path = "/usr/local/bin/chromedriver"
-                    service = Service(executable_path=chromedriver_path)
-                else:
-                    # For local development, use webdriver-manager
-                    from webdriver_manager.chrome import ChromeDriverManager
-                    service = Service(ChromeDriverManager().install())
+                print(f"Initializing Chrome with driver at: {chromedriver_path}")
+                service = Service(executable_path=chromedriver_path)
                 
                 driver_instance = webdriver.Chrome(service=service, options=chrome_options)
-                print("Created new driver instance")
+                print("Successfully created Chrome driver instance")
             except Exception as e:
                 print(f"Error creating driver: {e}")
+                import traceback
+                print(f"Full traceback:\n{traceback.format_exc()}")
                 return None
         return driver_instance
 
@@ -209,6 +240,19 @@ def shutdown():
             except Exception as e:
                 return jsonify({'error': str(e)}), 500
         return jsonify({'status': 'No browser instance to close'})
+
+# Verify ChromeDriver on startup
+print("Starting Facebook Browser API...")
+print(f"Python version: {platform.python_version()}")
+print(f"Platform: {platform.system()} {platform.release()}")
+
+# Check ChromeDriver availability
+chromedriver_check = verify_chromedriver()
+if chromedriver_check:
+    print(f"✓ ChromeDriver verified at: {chromedriver_check}")
+else:
+    print("✗ WARNING: ChromeDriver not found or not working!")
+    print("The service will start but browser operations will fail.")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

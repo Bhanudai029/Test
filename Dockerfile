@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install Chrome and ChromeDriver manually with simplified approach
+# Install Chrome and ChromeDriver
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -15,11 +15,19 @@ RUN apt-get update && apt-get install -y \
     echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list && \
     apt-get update && \
     apt-get install -y google-chrome-stable --no-install-recommends && \
-    # Install a stable ChromeDriver version (128.0.6613.86 - compatible with recent Chrome)
-    wget -q "https://storage.googleapis.com/chrome-for-testing-public/128.0.6613.86/linux64/chromedriver-linux64.zip" -O /tmp/chromedriver.zip && \
+    # Get Chrome version for logging
+    google-chrome --version && \
+    # Install ChromeDriver - using latest stable version
+    CHROMEDRIVER_VERSION="131.0.6778.204" && \
+    echo "Installing ChromeDriver version: $CHROMEDRIVER_VERSION" && \
+    wget -q "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip" -O /tmp/chromedriver.zip && \
     unzip -q /tmp/chromedriver.zip -d /tmp/ && \
+    # Make sure we're moving the actual chromedriver binary, not other files
+    ls -la /tmp/chromedriver-linux64/ && \
     mv /tmp/chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
     chmod +x /usr/bin/chromedriver && \
+    # Verify installation
+    /usr/bin/chromedriver --version && \
     # Cleanup to reduce image size
     apt-get purge -y wget gnupg unzip && \
     apt-get autoremove -y && \
