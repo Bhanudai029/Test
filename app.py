@@ -146,6 +146,9 @@ def get_or_create_driver():
                 service = Service(executable_path=chromedriver_path)
                 
                 driver_instance = webdriver.Chrome(service=service, options=chrome_options)
+                # Set reasonable timeouts
+                driver_instance.set_page_load_timeout(25)  # 25 seconds for page load
+                driver_instance.implicitly_wait(5)  # 5 seconds implicit wait (reduced from 10)
                 print("Successfully created Chrome driver instance")
             except Exception as e:
                 print(f"Error creating driver: {e}")
@@ -168,33 +171,53 @@ def navigate_and_interact(url):
             else:
                 url = 'https://www.facebook.com/' + url.lstrip('/')
         
-        # Navigate to URL
-        driver.get(url)
+        print(f"Navigating to: {url}")
         
-        # Wait 2 seconds
+        # Set page load timeout to 20 seconds (to avoid 30s timeout)
+        driver.set_page_load_timeout(20)
+        
+        try:
+            # Navigate to URL
+            driver.get(url)
+        except:
+            # If page load times out, continue anyway as page might be partially loaded
+            print("Page load timeout, continuing with interaction...")
+            pass
+        
+        # Wait 2 seconds for initial page load
         time.sleep(2)
         
         # Perform key sequence
         actions = ActionChains(driver)
         
-        # Press Escape
+        # Press Escape to close any popups
+        print("Pressing Escape...")
         actions.send_keys(Keys.ESCAPE).perform()
         time.sleep(0.5)
         
-        # Press Tab 7 times
-        for _ in range(7):
+        # Press Tab 7 times to navigate to the target element
+        print("Pressing Tab 7 times...")
+        for i in range(7):
             actions.send_keys(Keys.TAB).perform()
-            time.sleep(0.2)
+            time.sleep(0.2)  # Small delay between tabs
         
-        # Press Enter
+        # Press Enter to activate the element
+        print("Pressing Enter...")
         actions.send_keys(Keys.ENTER).perform()
         
-        # Wait for page changes
-        time.sleep(2)
+        # Wait for navigation/page changes
+        time.sleep(3)  # Increased wait time
         
         # Get final URL and title
         final_url = driver.current_url
         page_title = driver.title
+        
+        print(f"Final URL: {final_url}")
+        print(f"Page title: {page_title}")
+        
+        # Check if we got a photo URL format
+        if "photo" in final_url and "fbid" in final_url:
+            print("Successfully navigated to photo URL")
         
         return {
             'success': True,
@@ -204,6 +227,9 @@ def navigate_and_interact(url):
         }, None
         
     except Exception as e:
+        print(f"Error during navigation: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return None, str(e)
 
 @app.route('/')
