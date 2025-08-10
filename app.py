@@ -15,6 +15,7 @@ import os
 import threading
 import subprocess
 import platform
+import traceback
 
 app = Flask(__name__)
 
@@ -210,6 +211,76 @@ Content-Type: application/json
 def health():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'service': 'facebook-browser'})
+
+@app.route('/diagnostics')
+def diagnostics():
+    """Diagnostics endpoint to check system status"""
+    diagnostics_info = {
+        'platform': platform.system(),
+        'python_version': platform.python_version(),
+        'chromedriver_check': None,
+        'chrome_check': None,
+        'environment': {
+            'PORT': os.environ.get('PORT'),
+            'RENDER': os.environ.get('RENDER', 'false'),
+        }
+    }
+    
+    # Check ChromeDriver
+    chromedriver_path = verify_chromedriver()
+    if chromedriver_path:
+        diagnostics_info['chromedriver_check'] = {
+            'status': 'found',
+            'path': chromedriver_path
+        }
+    else:
+        diagnostics_info['chromedriver_check'] = {
+            'status': 'not_found',
+            'error': 'ChromeDriver not found or not working'
+        }
+    
+    # Check Chrome
+    try:
+        chrome_result = subprocess.run(['google-chrome', '--version'], 
+                                      capture_output=True, text=True, timeout=5)
+        if chrome_result.returncode == 0:
+            diagnostics_info['chrome_check'] = {
+                'status': 'found',
+                'version': chrome_result.stdout.strip()
+            }
+        else:
+            diagnostics_info['chrome_check'] = {
+                'status': 'error',
+                'error': chrome_result.stderr
+            }
+    except FileNotFoundError:
+        diagnostics_info['chrome_check'] = {
+            'status': 'not_found',
+            'error': 'Chrome not found'
+        }
+    except Exception as e:
+        diagnostics_info['chrome_check'] = {
+            'status': 'error',
+            'error': str(e)
+        }
+    
+    # Try to create a test driver
+    test_driver_result = {'status': 'not_tested', 'error': None}
+    try:
+        chrome_options = get_chrome_options()
+        if chromedriver_path:
+            service = Service(executable_path=chromedriver_path)
+            test_driver = webdriver.Chrome(service=service, options=chrome_options)
+            test_driver.quit()
+            test_driver_result['status'] = 'success'
+    except Exception as e:
+        test_driver_result['status'] = 'failed'
+        test_driver_result['error'] = str(e)
+        test_driver_result['traceback'] = traceback.format_exc()
+    
+    diagnostics_info['test_driver'] = test_driver_result
+    
+    return jsonify(diagnostics_info)
 
 @app.route('/navigate', methods=['POST'])
 def navigate():
