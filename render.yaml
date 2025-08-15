@@ -34,6 +34,6 @@ services:
       - key: CHROME_BIN
         value: "/usr/bin/google-chrome-stable"
       - key: CHROMEDRIVER_PATH
-        value: "/usr/local/bin/chromedriver"
+        value: "/usr/bin/chromedriver"
     healthCheckPath: /health
     autoDeploy: true
